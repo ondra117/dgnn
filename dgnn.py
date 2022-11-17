@@ -28,7 +28,7 @@ class DGNN:
         self._inicialize()
     
     def _inicialize(self):
-        self.memory = np.zeros([1, 2, self.n_inputs + self.n_outputs], dtype=np.float64)
+        self.memory = np.zeros([1, 1, 2, self.n_inputs + self.n_outputs], dtype=np.float64)
         self.weights = np.full([self.n_outputs, self.n_outputs + self.n_inputs], fill_value=None, dtype=np.float64)
         #fill weights randomly
         for i in range(self.n_inputs):
@@ -49,19 +49,19 @@ class DGNN:
         output = np.zeros([inputs.shape[0], self.n_outputs])
 
         for idx, inp in enumerate(inputs):
-            self.memory[0][0][:self.n_inputs] = inp
+            self.memory[0][0][0][:self.n_inputs] = inp
             
             for layer_info in self.neuron_info:
                 for neuron_info in layer_info:
-                    result = np.sum(np.nan_to_num(self.weights[neuron_info[1]]) * self.memory[0][0]) + neuron_info[0]
+                    result = np.sum(np.nan_to_num(self.weights[neuron_info[1]]) * self.memory[0][0][0]) + neuron_info[0]
                     if neuron_info[3]:
                         result = self.hiden_activation(result)
                     else:
                         result = self.last_activation(result)
-                    temporary_memory[0][0][neuron_info[2]] = result
-                self.memory[0][0] = temporary_memory[0][0]
+                    temporary_memory[0][0][0][neuron_info[2]] = result
+                self.memory[0][0][0] = temporary_memory[0][0][0]
             
-            output[idx] = self.memory[0][0][-self.n_outputs:]
+            output[idx] = self.memory[0][0][0][-self.n_outputs:]
         
         return output
 
@@ -86,14 +86,14 @@ class DGNN:
                 for idx in range(math.ceil(inp.shape[0] / cuda.blockDim.x)):
                     idx_mem_mov = cuda.threadIdx.x + cuda.blockDim.x * idx
                     if inp.shape[0] > idx_mem_mov:
-                        memory_io[0, 0, idx_mem_mov] = inp[idx_mem_mov]
+                        memory_io[0, 0, 0, idx_mem_mov] = inp[idx_mem_mov]
                 cuda.syncthreads()
 
                 for layer_info in neuron_info_io:
                     if math.isnan(layer_info[cuda.threadIdx.x][2]): break
 
                     result = 0
-                    for weight, mem in zip(weights_io[layer_info[cuda.threadIdx.x, 1]], memory_io[0, 0]):
+                    for weight, mem in zip(weights_io[layer_info[cuda.threadIdx.x, 1]], memory_io[0, 0, 0]):
                         if math.isnan(weight): weight = 0
 
                         result += weight * mem
@@ -106,7 +106,7 @@ class DGNN:
                     
 
                     cuda.syncthreads()
-                    memory_io[0, 0, layer_info[cuda.threadIdx.x, 2]] = result
+                    memory_io[0, 0, 0, layer_info[cuda.threadIdx.x, 2]] = result
                     cuda.syncthreads()
 
         def kernel_calculate_full():
@@ -139,7 +139,6 @@ if __name__ == '__main__':
 
     np.random.seed(8)
     dgnn = DGNN(2, 4, Relu(), Identity())
-    dgnn.Prepare_memory()
     dgnn.Create_kernel()
     out = dgnn.Calculate_GPU(np.array([
         [1, 2],
