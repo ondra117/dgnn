@@ -16,11 +16,11 @@ class Activation_fn(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def cuda_fn(self, z):
+    def cuda_fn(self):
         raise NotImplementedError
 
     @abstractmethod
-    def cuda_derivative(self, z):
+    def cuda_derivative(self):
         raise NotImplementedError
 
 class Relu(Activation_fn):
@@ -60,12 +60,12 @@ class Identity(Activation_fn):
     def derivative(self, z):
         return 1
 
-    def cuda_fn(z):
+    def cuda_fn(self):
         def fn(z):
             return z
         return fn
     
-    def cuda_derivative(z):
+    def cuda_derivative(self):
         def fn(z):
             return 1
         return fn
